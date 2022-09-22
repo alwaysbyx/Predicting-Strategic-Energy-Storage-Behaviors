@@ -48,7 +48,7 @@ if __name__ == "__main__":
     
     opts = parser.parse_args()
     T = 24
-    N_train = 300
+    N_train = 200
 
     # build model
     if opts.model == 'MLP':
@@ -76,5 +76,5 @@ if __name__ == "__main__":
         L = history.history['loss']
         val_L = history.history['val_loss']
         np.savez(f'result/baseline/{opts.model}_loss_{i}.npz', loss=L, val_loss=val_L)
-        if i == 0:
-            model.save(f"result/baseline/model_{opts.model}")
+        if i == -1:
+            model.save(f"result/baseline/model_{opts.model}_{i}")
