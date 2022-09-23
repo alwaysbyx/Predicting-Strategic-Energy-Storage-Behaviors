@@ -75,7 +75,7 @@ def data_generator(
         
         model.addConstrs(c[i]==(e[i]-0.5)*(e[i]-0.5) for i in range(T))
 
-        utility_cost = c1 * quicksum(c[i] for i in range(T)) + c2 * quicksum(d[i] for i in range(T))
+        utility_cost = c1 * quicksum(c[i]*d[i] for i in range(T)) + c2 * quicksum(d[i] for i in range(T))
         f = quicksum(price[i]*(p[i]-d[i]) for i in range(T)) + utility_cost
         # define constraints
         model.addConstrs(p[i] <= P1 for i in range(T))
@@ -112,14 +112,14 @@ def data_generator(
 
 if __name__ == '__main__':
     N_train = 240
-    dim = 6
-    for seed in range(1,10):
+    dim = 12
+    for seed in range(5):
         np.random.seed(seed)
         ## initialize parameter
         duration = round(np.random.uniform(1, 4))
         eta = round(np.random.uniform(0.8, 1), 2)
-        c1 = round(np.random.uniform(0, 10), 2)
-        c2 = round(np.random.uniform(0, 20), 2)
+        c1 = round(np.random.uniform(10, 40), 2)
+        c2 = round(np.random.uniform(1, 5), 2)
         paras = pd.DataFrame([[0.5, 0.5, c1, c2, duration, eta]],columns=("P1", "E1", "c1", "c2", "duration", "eta"))
 
         print( "Generating data....",
@@ -145,4 +145,4 @@ if __name__ == '__main__':
             T=dim,
         )
         present_time = time.strftime("%m%d%H%M", time.localtime()) 
-        np.savez(f"dataset/version2/data_N{N_train}_{seed}", paras = paras, price = df_price, d=df_d, p=df_p, e=df_e)
+        np.savez(f"dataset/v4/data_N{N_train}_{seed}", paras = paras, price = df_price, d=df_d, p=df_p, e=df_e)
