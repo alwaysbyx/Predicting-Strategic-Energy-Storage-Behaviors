@@ -65,38 +65,38 @@ class DRagent(nn.Module):
     """
     Using this layer, we train c1, c2, E1, E2, and eta, other parameters are infered from historical data.
     """
-    def __init__(self, P1, P2, T, eta, type='scalar'):
+    def __init__(self, P1, P2, T, type='scalar'):
         super().__init__()
 
-        self.E1 = nn.Parameter(0.5 * torch.ones(1))
-        self.E2 = nn.Parameter(-0.5 * torch.ones(1))
-        self.eta =  eta*torch.ones(1) # eta*torch.ones(1) #nn.Parameter(0.9 * torch.ones(1)) # eta*torch.ones(1)
+        self.E1 = 1.*torch.ones(1) # nn.Parameter(0.5 * torch.ones(1))
+        self.E2 = 0.*torch.ones(1) # nn.Parameter(-0.5 * torch.ones(1))
+        self.eta1 = 0.85*torch.ones(1) #eta*torch.ones(1) #nn.Parameter(0.9 * torch.ones(1))
+        self.eta2 = 0.95*torch.ones(1)
         self.T = T
         eps = 1e-4
-    
         
         self.type = type
         if type=='scalar':
             self.costNN = ICNN2()
-            obj = (lambda d, p, price, c1, c2, E1, E2, eta: -price @ (d - p) + c1 @ d + cp.sum_squares(cp.sqrt(cp.diag(c2)) @ d) if isinstance(d, cp.Variable)
+            obj = (lambda d, p, price, c1, c2, E1, E2, eta1, eta2, e0: -price @ (d - p) + c1 @ d + cp.sum_squares(cp.sqrt(cp.diag(c2)) @ d) if isinstance(d, cp.Variable)
             else -price @ (d - p) + c1 @ d + torch.sum((torch.sqrt(torch.diag(c2)) @ d)**2))
         else: 
             self.costNN = ICNN()
-            obj = (lambda d, p, price, c1, c2, E1, E2, eta: -price @ (d - p) + c1 @ d  +  cp.QuadForm(d, c2) if isinstance(d, cp.Variable) else -price @ (d - p) + c1 @ d +  d @ c2 @ d )
+            obj = (lambda d, p, price, c1, c2, E1, E2, eta1, eta2, e0: -price @ (d - p) + c1 @ d  +  cp.QuadForm(d, c2) if isinstance(d, cp.Variable) else -price @ (d - p) + c1 @ d +  d @ c2 @ d )
         self.objective = obj
-        self.ineq1 = (lambda d, p, price, c1, c2, E1, E2, eta: p - torch.ones(T, dtype=torch.double) * P1)
-        self.ineq2 = (lambda d, p, price, c1, c2, E1, E2, eta: torch.ones(T, dtype=torch.double)* 1e-9 - p)
-        self.ineq3 = (lambda d, p, price, c1, c2, E1, E2, eta: d - torch.ones(T, dtype=torch.double) * P2)
-        self.ineq4 = (lambda d, p, price, c1, c2, E1, E2, eta: torch.ones(T, dtype=torch.double) * 1e-9 - d)
-        self.ineq5 = (lambda d, p, price, c1, c2, E1, E2, eta: torch.tril(torch.ones(T, T, dtype=torch.double)) @ (eta * p - d / eta)
+        self.ineq1 = (lambda d, p, price, c1, c2, E1, E2, eta1, eta2, e0: p - torch.ones(T, dtype=torch.double) * P1)
+        self.ineq2 = (lambda d, p, price, c1, c2, E1, E2, eta1, eta2, e0: torch.ones(T, dtype=torch.double)* 1e-9 - p)
+        self.ineq3 = (lambda d, p, price, c1, c2, E1, E2, eta1, eta2, e0: d - torch.ones(T, dtype=torch.double) * P2)
+        self.ineq4 = (lambda d, p, price, c1, c2, E1, E2, eta1, eta2, e0: torch.ones(T, dtype=torch.double) * 1e-9 - d)
+        self.ineq5 = (lambda d, p, price, c1, c2, E1, E2, eta1, eta2, e0: torch.tril(torch.ones(T, T, dtype=torch.double)) @ (eta1 /4.4 * p - d /4.4/ eta2)
             - torch.as_tensor(np.arange(eps, (T+1)*eps, eps))
-            - torch.ones(T, dtype=torch.double) * E1)
-        self.ineq6 = lambda d, p, price, c1, c2, E1, E2, eta: torch.ones(
+            - torch.ones(T, dtype=torch.double) * (E1-e0))
+        self.ineq6 = lambda d, p, price, c1, c2, E1, E2, eta1, eta2, e0: torch.ones(
             T, dtype=torch.double
-        ) * E2 - torch.tril(torch.ones(T, T, dtype=torch.double)) @ (eta * p - d / eta) + torch.as_tensor(np.arange(eps, (T+1)*eps, eps))
+        ) * (E2-e0) - torch.tril(torch.ones(T, T, dtype=torch.double)) @ (eta1 * p / 4.4 - d / eta2 / 4.4) + torch.as_tensor(np.arange(eps, (T+1)*eps, eps))
 
         if self.type == 'scalar':
-            parameters = [cp.Parameter(T,), cp.Parameter(T), cp.Parameter(T), cp.Parameter(1), cp.Parameter(1), cp.Parameter(1),]
+            parameters = [cp.Parameter(T,), cp.Parameter(T), cp.Parameter(T), cp.Parameter(1), cp.Parameter(1), cp.Parameter(1), cp.Parameter(1), cp.Parameter(1)]
         else: parameters = [cp.Parameter(T,), cp.Parameter(T), cp.Parameter((T,T),PSD=True), cp.Parameter(1), cp.Parameter(1), cp.Parameter(1),]
         self.layer = util.OptLayer(
             [cp.Variable(T), cp.Variable(T)],
@@ -161,21 +161,22 @@ class DRagent(nn.Module):
             return hessians, grads, costs
 
 
-    def forward(self, price):
+    def forward(self, price, e0):
         # price: [B,T]
         # dr: [B, T]
         if self.type == 'scalar':
             d = torch.rand(price.shape[1], price.shape[0]).unsqueeze(2)
         else: 
             d = torch.rand(price.shape[0], price.shape[1]) # [B,T]
-            p = torch.rand(price.shape[0], price.shape[1])
         for i in range(10):
             if self.type == 'scalar': c2, c1, _ = self.approximate_cost2(d, diff=False)
             else: c2, c1 = self.approximate_cost(d, diff=False)
             d, p = self.layer(price, c1, c2,
                             self.E1.expand(price.shape[0], *self.E1.shape),
                             self.E2.expand(price.shape[0], *self.E2.shape),
-                            self.eta.expand(price.shape[0], *self.eta.shape), flag=True)
+                            self.eta1.expand(price.shape[0], *self.eta1.shape), 
+                            self.eta2.expand(price.shape[0], *self.eta2.shape),
+                            e0, flag=True)
             if self.type == 'scalar':
                 d = d.permute(1,0).unsqueeze(2)
         
@@ -189,7 +190,9 @@ class DRagent(nn.Module):
             c2,
             self.E1.expand(price.shape[0], *self.E1.shape),
             self.E2.expand(price.shape[0], *self.E2.shape),
-            self.eta.expand(price.shape[0], *self.eta.shape),
+            self.eta1.expand(price.shape[0], *self.eta1.shape),
+            self.eta2.expand(price.shape[0], *self.eta2.shape),
+            e0
         ) # return: [2, B, T]
 
 
@@ -197,33 +200,34 @@ def train(dataset, i, T=24,  N_train=20, N_test=10,  model_type='vector'):
     torch.manual_seed(i)
     T = T
     N_train = N_train
-    
+    P1 = 1.1
+    P2 = 1.1
 
-    df_price = dataset['Energy Price ($/MWh)'].values
-    df_y = dataset['3 Phase Power (kW)'].values / 1000
-    d = np.clip(df_y, a_min=0, a_max=2)
-    p = np.abs(np.clip(df_y, a_min=-2, a_max=0))
-    P1 = max(d)
-    P2 = max(p)
+    df_price = dataset['price']
+    df_y = dataset['dr']
+    e0 = dataset['e0']
+    p = np.clip(df_y, a_min=0, a_max=2)
+    d = np.abs(np.clip(df_y, a_min=-2, a_max=0))
 
-    price_tensor = torch.from_numpy(np.mean(df_price[:N_train*288].reshape(N_train, T, -1),axis=2)).double()
-    d_tensor = torch.from_numpy(np.mean(d[:N_train*288].reshape(N_train, T, -1),axis=2)).double()
-    p_tensor = torch.from_numpy(np.mean(p[:N_train*288].reshape(N_train, T, -1),axis=2)).double()
+    price_tensor = torch.from_numpy(df_price[:N_train]).double()
+    d_tensor = torch.from_numpy(d[:N_train]).double()
+    p_tensor = torch.from_numpy(p[:N_train]).double()
     y_tensor = tuple([d_tensor, p_tensor])
+    e0_tensor = torch.from_numpy(e0[:N_train]).double()
     #y_tensor = torch.from_numpy(np.mean(df_y[:N_train*288].reshape(N_train, 24, 12),axis=2)).double()
 
-    price_tensor2 = torch.from_numpy(np.mean(df_price[N_train*288:(N_train+N_test)*288].reshape(N_test, T, -1),axis=2)).double()
-    d_tensor2 = torch.from_numpy(np.mean(d[N_train*288:(N_train+N_test)*288].reshape(N_test, T, -1),axis=2)).double()
-    p_tensor2 = torch.from_numpy(np.mean(p[N_train*288:(N_train+N_test)*288].reshape(N_test, T, -1),axis=2)).double()
+    price_tensor2 = torch.from_numpy(df_price[-N_test:]).double()
+    d_tensor2 = torch.from_numpy(d[-N_test:]).double()
+    p_tensor2 = torch.from_numpy(p[-N_test:]).double()
     y_tensor2 = tuple([d_tensor2, p_tensor2])
-    #y_tensor2 = torch.from_numpy(np.mean(df_y[N_train*288:(N_train+N_test)*288].reshape(N_test, 24, 12),axis=2)).double()
+    e0_tensor2 = torch.from_numpy(e0[-N_test:]).double()
 
     L = []
     val_L = []
-    layer = DRagent(P1, P2, T, 0.865, type=model_type)
+    layer = DRagent(P1, P2, T, type=model_type)
     opt1 = optim.Adam(layer.parameters(), lr=2e-2)
     for ite in range(500):
-        dp_pred = layer(price_tensor)
+        dp_pred = layer(price_tensor, e0_tensor)
         if ite == 50:
             opt1.param_groups[0]["lr"] = 1e-2
         elif ite == 150:
@@ -234,16 +238,14 @@ def train(dataset, i, T=24,  N_train=20, N_test=10,  model_type='vector'):
         loss.backward()
         opt1.step()
         with torch.no_grad():
-            layer.E1.data = torch.clamp(layer.E1.data, min=0.01, max=100) 
-            layer.E2.data = torch.clamp(layer.E2.data, min=-100, max=-0.01) 
             if torch.min(layer.costNN.linear_z1.weight.data) < 1e-3:
                 layer.costNN.linear_z1.weight.data = torch.clamp(layer.costNN.linear_z1.weight.data, min=1e-2)
         layer.eval()
-        dp_pred2 = layer(price_tensor2)
+        dp_pred2 = layer(price_tensor2, e0_tensor2)
         loss2 = nn.MSELoss()(y_tensor2[0], dp_pred2[0]) + nn.MSELoss()(y_tensor2[1], dp_pred2[1])
         #loss2 = nn.MSELoss()(y_tensor2, dp_pred2[0]-dp_pred2[0])
         val_L.append(loss2.detach().numpy())
-        print(f'ite = {ite}, loss = {loss.detach().numpy()}, eta = {layer.eta.data}, val_l = {loss2.detach().numpy()}')
+        print(f'ite = {ite}, loss = {loss.detach().numpy()}, val_l = {loss2.detach().numpy()}')
         L.append(loss.detach().numpy())
     
     L = [float(l) for l in L]
@@ -251,9 +253,10 @@ def train(dataset, i, T=24,  N_train=20, N_test=10,  model_type='vector'):
     return L, val_L, layer
 
 if __name__ == '__main__':
-    model_type = 'vector'
-    data = pd.read_csv('dataset/UQ Tesla Battery - 2022 (5-min resolution).csv')  
+    model_type = 'scalar'
+    #data = pd.read_csv('dataset/UQ Tesla Battery - 2022 (5-min resolution).csv')  
     #L, val_L, layer = train(data, T=24, N_train=40, N_test=10, model_type=model_type)
-    L, val_L, layer = train(data, 0, T=48, N_train=40, N_test=10, model_type=model_type)
-    torch.save(layer.state_dict(), f'result/model_gradient/model_{model_type}.pth')
-    np.savez(f'result/model_gradient/ICNN_vector/version2/loss_{model_type}.npz', loss=L, val_loss=val_L)
+    data = np.load(f"dataset/UQ-Tesla-2020.npz")
+    L, val_L, layer = train(data, 0, T=96, N_train=30, N_test=20, model_type=model_type)
+    torch.save(layer.state_dict(), f'result/model_gradient/ICNN/model_{model_type}.pth')
+    np.savez(f'result/model_gradient/ICNN/loss_{model_type}.npz', loss=L, val_loss=val_L)
