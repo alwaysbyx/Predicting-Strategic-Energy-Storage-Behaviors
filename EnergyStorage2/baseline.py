@@ -74,9 +74,10 @@ if __name__ == "__main__":
         train_price = df_price[N_test:N_test+N_train]
         train_dr = df_y[N_test:N_test+N_train]
         
-        history = model.fit(train_price,train_dr, validation_data = (test_price, test_dr),  epochs=500, batch_size=128, verbose=0) #validation_data = (test_price, test_dr),
+        history = model.fit(train_price,train_dr, validation_data = (test_price, test_dr),  epochs=500, batch_size=32, verbose=0) #validation_data = (test_price, test_dr),
         L = history.history['loss']
         val_L = history.history['val_loss']
+        print(f'train loss := {L[-1]}, val loss := {val_L[-1]}')
         np.savez(f'result/baseline/version2/{opts.model}_loss_{i}_train200test10.npz', loss=L, val_loss=val_L)
         if i == 8:
             model.save(f"result/baseline/version2/model_{opts.model}_{i}")

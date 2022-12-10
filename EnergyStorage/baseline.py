@@ -72,7 +72,7 @@ if __name__ == "__main__":
         train_price = df_price[10:10+N_train]
         train_dr = df_y[10:10+N_train]
         
-        history = model.fit(train_price,train_dr, validation_data = (test_price, test_dr), epochs=500, batch_size=128, verbose=0)
+        history = model.fit(train_price,train_dr, validation_data = (test_price, test_dr), epochs=500, batch_size=32, verbose=0)
         L = history.history['loss']
         val_L = history.history['val_loss']
         np.savez(f'result/baseline/{opts.model}_loss_{i}.npz', loss=L, val_loss=val_L)

@@ -126,9 +126,9 @@ def train(dataset, T=24, N_train=20, N_test=10, model_type='matrix'):
 
 if __name__ == '__main__':
     model_type = 'matrix'
-    for i in range(5):
+    for i in range(1,10):
         #df_dp = np.load(f"dataset/version1/data_N365_5.npz")
-        df_dp = np.load(f"dataset/v4/data_N240_{i}.npz")
-        L, val_L, layer = train(df_dp, T=12, N_train=40, N_test=10, model_type=model_type)
-        torch.save(layer.state_dict(), f'result/model_gradient/quad/v4/model_{i}.pth')
-        np.savez(f'result/model_gradient/quad/v4/loss_{i}.npz', loss=L, val_loss=val_L)
+        df_dp = np.load(f"dataset/version2/data_N240_{i}.npz")
+        L, val_L, layer = train(df_dp, T=6, N_train=30, N_test=10, model_type=model_type)
+        torch.save(layer.state_dict(), f'result/model_gradient/quad/version2/model_{i}.pth')
+        np.savez(f'result/model_gradient/quad/version2/loss_{i}.npz', loss=L, val_loss=val_L)

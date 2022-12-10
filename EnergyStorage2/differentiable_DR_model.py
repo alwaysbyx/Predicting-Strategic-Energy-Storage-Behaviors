@@ -1,3 +1,5 @@
+from ctypes import c_int32
+from turtle import hideturtle
 import torch
 import torch.nn as nn
 from functorch import vmap
@@ -24,7 +26,7 @@ torch.manual_seed(0)
 
 class ICNN(torch.nn.Module):
     """Input Convex Neural Network"""
-    def __init__(self, input_num=12, hidden_num=24):
+    def __init__(self, input_num=6, hidden_num=24):
         super().__init__()
 
         self.linear_z1 = nn.Linear(hidden_num, 1, bias=False)
@@ -244,9 +246,9 @@ def train(dataset, i, T=24,  N_train=20, N_test=10,  model_type='vector'):
 
 
 if __name__ == '__main__':
-    for i in range(2, 5):
+    for i in range(1):
         #df_dp = np.load(f"dataset/version1/data_N365_5.npz")
-        df_dp = np.load(f"dataset/v4/data_N240_{i}.npz")
-        L, val_L, layer = train(df_dp, 0, T=12, N_train=40, N_test=10, model_type='matrix')
-        torch.save(layer.state_dict(), f'result/model_gradient/ICNN_vector/v4/model_{i}.pth')
-        np.savez(f'result/model_gradient/ICNN_vector/v4/loss_{i}.npz', loss=L, val_loss=val_L)
+        df_dp = np.load(f"dataset/version2/data_N840_{i}.npz")
+        L, val_L, layer = train(df_dp, 0, T=6, N_train=40, N_test=10, model_type='matrix')
+        torch.save(layer.state_dict(), f'result/model_gradient/ICNN_vector/version2/model_{i}_eta.pth')
+        np.savez(f'result/model_gradient/ICNN_vector/version2/loss_{i}_eta.npz', loss=L, val_loss=val_L)
