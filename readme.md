@@ -14,6 +14,7 @@ python baseline.py --model MLP
 # Running generic model
 python train_general.py
 ```
+We also compare the proposed approach using optimization-tools to directly solving the single-level optimization, please see optimization.m for more detail. 
 
 
 ## Case study 2. SoC cost energy storage model
