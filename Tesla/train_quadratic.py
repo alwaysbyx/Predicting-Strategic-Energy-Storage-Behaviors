@@ -23,9 +23,9 @@ class DRagent_Quad(nn.Module):
     def __init__(self, P1, P2, T, type='matrix'):
         super().__init__()
 
-        self.E1 = 1.*torch.ones(1) # nn.Parameter(1.0 * torch.ones(1)) # 1.*torch.ones(1) # 1.*torch.ones(1) # nn.Parameter(0.5 * torch.ones(1))
-        self.E2 = 0.*torch.ones(1) # nn.Parameter(0. * torch.ones(1))  # 0.*torch.ones(1) # nn.Parameter(-0.5 * torch.ones(1))
-        self.eta1 =  nn.Parameter(torch.tensor(0.85)) # 0.85*torch.ones(1) #eta*torch.ones(1) #nn.Parameter(0.9 * torch.ones(1))
+        self.E1 = 1.*torch.ones(1) 
+        self.E2 = 0.*torch.ones(1) 
+        self.eta1 =  nn.Parameter(torch.tensor(0.85)) 
         self.eta2 =  nn.Parameter(torch.tensor(0.95))
         self.T = T
         eps = 1e-4
