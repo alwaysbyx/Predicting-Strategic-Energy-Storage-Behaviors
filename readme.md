@@ -1,6 +1,6 @@
 # Predicting Strategic Energy Storage Behaviors
 
-For more details, please see our paper [Predicting Strategic Energy Storage Behaviors[(https://ieeexplore.ieee.org/document/10214105) which has been accepted at IEEE transaction on Smart Grid, 2023. If this is useful for your work, please cite our paper.
+For more details, please see our paper [Predicting Strategic Energy Storage Behaviors](https://ieeexplore.ieee.org/document/10214105) which has been accepted at IEEE transaction on Smart Grid, 2023. If this is useful for your work, please cite our paper.
 
 This repository contains the code to reproduce the results. 
 
